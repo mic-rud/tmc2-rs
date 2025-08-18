@@ -8,8 +8,14 @@ use bitstream::Bitstream;
 use codec::PointSet3;
 use common::context::Context;
 use crossbeam_channel as chan;
+use std::sync::mpsc::{channel, Receiver};
 use std::path::PathBuf;
 use std::thread;
+use std::fs::File;
+use std::io::Write;
+
+use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyDict, PyList, PyTuple};
 
 /// The library's decoder
 pub struct Decoder {
@@ -151,4 +157,83 @@ impl Iterator for Decoder {
     fn next(&mut self) -> Option<Self::Item> {
         self.recv_frame()
     }
+}
+
+
+#[pyclass]
+pub struct PyTMC2Decoder {
+    rx: Option<Receiver<codec::PointSet3>>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+#[pymethods]
+impl PyTMC2Decoder {
+    #[new]
+    fn new(_py: Python<'_>, stream: &PyBytes) -> PyResult<Self> {
+        let tmp_path = PathBuf::from("/tmp/tmc2_input.bin");
+        let mut file = File::create(&tmp_path)?;
+        std::io::Write::write_all(&mut file, stream.as_bytes())?;
+
+        let mut decoder = Decoder::new(Params::new(tmp_path));
+        let (tx, rx) = channel();
+
+        decoder.start();
+
+        let handle = thread::spawn(move || {
+            for frame in decoder {
+                if tx.send(frame).is_err() {
+                    break;
+                }
+            }
+        });
+
+        Ok(Self {
+            rx: Some(rx),
+            handle: Some(handle),
+        })
+    }
+
+    fn next_frame(&mut self, py: Python<'_>) -> Option<PyObject> {
+        if let Some(rx) = &self.rx {
+            match rx.try_recv() {
+                Ok(frame) => {
+                    let dict = PyDict::new(py);
+
+                    let py_positions = PyList::empty(py);
+                    for pos in frame.positions.iter() {
+                        let tup = PyTuple::new(py, &[pos.x.into_py(py), pos.y.into_py(py), pos.z.into_py(py)]);
+                        py_positions.append(tup).unwrap();
+                    }
+                    dict.set_item("positions", py_positions).ok();
+
+                    if frame.with_colors {
+                        let py_colors = PyList::empty(py);
+                        for col in frame.colors.iter() {
+                            let tup = PyTuple::new(py, &[col.x.into_py(py), col.y.into_py(py), col.z.into_py(py)]);
+                            py_colors.append(tup).unwrap();
+                        }
+                        dict.set_item("colors", py_colors).ok();
+                    }
+
+                    Some(dict.into())
+                }
+                Err(_) => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    fn close(&mut self) {
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+        self.rx = None;
+    }
+}
+
+#[pymodule]
+fn tmc2lib(_py: pyo3::Python, m: &pyo3::prelude::PyModule) -> pyo3::PyResult<()> {
+    m.add_class::<PyTMC2Decoder>()?;
+    Ok(())
 }
