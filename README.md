@@ -62,14 +62,14 @@ for frame in decoder.into_iter() {
 This fork extends the lib by a python library.
 
 Building:
-"""
+```
    python3 -m pip install maturin[patchelf]
    maturin build --release -o dist
    python3 -m pip install dist/*.whl
-"""
+```
 
 Usage:
-"""
+```
    import tmc2lib
    
    decoder = tmc2lib.PyTMC2Decoder(open("/app/data/encoded/downsampled/redandblack_r5_segment0.bin", "rb").read())
@@ -78,4 +78,4 @@ Usage:
    print(frame)
    ...
    decoder.close()
-"""
+```
