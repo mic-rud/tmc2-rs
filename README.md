@@ -69,10 +69,10 @@ Building:
 ```
 
 Usage:
-```
+```python
    import tmc2lib
    
-   decoder = tmc2lib.PyTMC2Decoder(open("/app/data/encoded/downsampled/redandblack_r5_segment0.bin", "rb").read())
+   decoder = tmc2lib.PyTMC2Decoder(open("bitstream.bin", "rb").read())
 
    frame = decoder.next_frame()
    print(frame)
