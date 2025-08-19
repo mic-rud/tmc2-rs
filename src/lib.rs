@@ -192,28 +192,17 @@ impl PyTMC2Decoder {
 
         let mut decoder = Decoder::from_memory(stream_data);
 
-        let (tx, rx) = channel();
-
         decoder.start();
 
-        let handle = thread::spawn(move || {
-            for frame in decoder {
-                if tx.send(frame).is_err() {
-                    break;
-                }
-            }
-        });
-
         Ok(Self {
-            rx: Some(rx),
-            handle: Some(handle),
+            decoder: Some(decoder),
         })
     }
 
     fn next_frame(&mut self, py: Python<'_>) -> PyResult<Option<PyObject>> {
-        if let Some(rx) = &self.rx {
-            match rx.recv() {
-                Ok(frame) => {
+        if let Some(decoder) = &self.decoder {
+            match decoder.next_frame() {
+                Some(frame) => {
                     let dict = PyDict::new(py);
 
                     let py_positions = PyList::empty(py);
@@ -234,7 +223,7 @@ impl PyTMC2Decoder {
 
                     Ok(Some(dict.into()))
                 }
-                Err(_) => Ok(None),
+                None => Ok(None),
             }
         } else {
             Ok(None)
