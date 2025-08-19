@@ -63,6 +63,10 @@ impl Bitstream {
         Self::new(data)
     }
 
+    pub fn from_bytes(data: Vec<u8>) -> Self {
+        Self::new(data)
+    }
+
     /// Clear all data in bitstream
     pub fn clear(&mut self) {
         self.data.clear();

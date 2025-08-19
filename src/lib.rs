@@ -23,6 +23,13 @@ pub enum BitstreamSource {
     Memory(Vec<u8>),
 }
 
+impl Default for BitstreamSource {
+    fn default() -> Self {
+        BitstreamSource::Memory(Vec::new())
+    }
+}
+
+
 /// The library's decoder
 pub struct Decoder {
     params: Params,
@@ -117,9 +124,9 @@ impl Decoder {
     /// ```
     pub fn start(&mut self) {
         let bitstream = match &self.params.source {
-            BitstreamSource::File(path) => Bitstream::from_file(&self.params.compressed_stream_path);
-            BitstreamSource::Memory(data) => Bitstream::from_bytes(data.clone()), 
-        }
+            BitstreamSource::File(path) => Bitstream::from_file(path),
+            BitstreamSource::Memory(data) => Bitstream::from_bytes(data.clone()),
+        };
         // let mut bitstream_stat = bitstream::Stat::new();
         // TODO[checks] bitstream.computeMD5()
         // TODO[stat] (9Dec22): Do everything related to bitstream_stat
@@ -180,8 +187,7 @@ impl Iterator for Decoder {
 
 #[pyclass]
 pub struct PyTMC2Decoder {
-    rx: Option<Receiver<codec::PointSet3>>,
-    handle: Option<std::thread::JoinHandle<()>>,
+    decoder: Option<Decoder>,
 }
 
 #[pymethods]
@@ -201,7 +207,7 @@ impl PyTMC2Decoder {
 
     fn next_frame(&mut self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         if let Some(decoder) = &self.decoder {
-            match decoder.next_frame() {
+            match decoder.recv_frame() {
                 Some(frame) => {
                     let dict = PyDict::new(py);
 
@@ -231,10 +237,7 @@ impl PyTMC2Decoder {
     }
 
     fn close(&mut self) {
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
-        }
-        self.rx = None;
+        self.decoder = None;
     }
 }
 
