@@ -17,6 +17,12 @@ use std::io::Write;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList, PyTuple};
 
+#[derive(Debug, Clone)]
+pub enum BitstreamSource {
+    File(PathBuf),
+    Memory(Vec<u8>),
+}
+
 /// The library's decoder
 pub struct Decoder {
     params: Params,
@@ -31,6 +37,7 @@ pub struct Params {
     // NOTE: we don't need start_frame and reconstructed_data_path while decoding
     // pub start_frame: usize,
     // pub reconstructed_data_path: PathBuf,
+    pub source: BitstreamSource,
     pub compressed_stream_path: PathBuf,
     pub video_decoder_path: Option<PathBuf>,
     // NOTE (2Jan23): always true
@@ -83,6 +90,14 @@ impl Decoder {
         }
     }
 
+    pub fn from_memory(data: Vec<u8>) -> Self {
+        let params = Params {
+            source: BitstreamSource::Memory(data),
+            ..Default::default()
+        };
+        Decoder::new(params)
+    }
+
     /// Spawns a thread to decode.
     /// The decoded point cloud can be retrieved in order by repeatedly calling `recv_frame()` method until it returns None.
     ///
@@ -101,7 +116,10 @@ impl Decoder {
     /// }
     /// ```
     pub fn start(&mut self) {
-        let bitstream = Bitstream::from_file(&self.params.compressed_stream_path);
+        let bitstream = match &self.params.source {
+            BitstreamSource::File(path) => Bitstream::from_file(&self.params.compressed_stream_path);
+            BitstreamSource::Memory(data) => Bitstream::from_bytes(data.clone()), 
+        }
         // let mut bitstream_stat = bitstream::Stat::new();
         // TODO[checks] bitstream.computeMD5()
         // TODO[stat] (9Dec22): Do everything related to bitstream_stat
@@ -170,11 +188,10 @@ pub struct PyTMC2Decoder {
 impl PyTMC2Decoder {
     #[new]
     fn new(_py: Python<'_>, stream: &PyBytes) -> PyResult<Self> {
-        let tmp_path = PathBuf::from("/tmp/tmc2_input.bin");
-        let mut file = File::create(&tmp_path)?;
-        std::io::Write::write_all(&mut file, stream.as_bytes())?;
+        let stream_data = stream.as_bytes().to_vec();
 
-        let mut decoder = Decoder::new(Params::new(tmp_path));
+        let mut decoder = Decoder::from_memory(stream_data);
+
         let (tx, rx) = channel();
 
         decoder.start();
@@ -193,7 +210,7 @@ impl PyTMC2Decoder {
         })
     }
 
-    fn next_frame(&mut self, py: Python<'_>) -> Option<PyObject> {
+    fn next_frame(&mut self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         if let Some(rx) = &self.rx {
             match rx.recv() {
                 Ok(frame) => {
