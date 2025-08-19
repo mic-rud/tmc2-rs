@@ -31,4 +31,4 @@ name = "decoder"
 debug = true
 
 [package.metadata.maturin]
-name = "tmc2rs"
+name = "tmc2lib"
