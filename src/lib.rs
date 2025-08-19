@@ -233,7 +233,7 @@ impl PyTMC2Decoder {
 }
 
 #[pymodule]
-fn tmc2lib(_py: pyo3::Python, m: &pyo3::prelude::PyModule) -> pyo3::PyResult<()> {
+fn tmc2rs(_py: pyo3::Python, m: &pyo3::prelude::PyModule) -> pyo3::PyResult<()> {
     m.add_class::<PyTMC2Decoder>()?;
     Ok(())
 }

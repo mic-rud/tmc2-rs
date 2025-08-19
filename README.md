@@ -70,9 +70,9 @@ Building:
 
 Usage:
 ```python
-   import tmc2lib
+   import tmc2rs
    
-   decoder = tmc2lib.PyTMC2Decoder(open("bitstream.bin", "rb").read())
+   decoder = tmc2rs.PyTMC2Decoder(open("bitstream.bin", "rb").read())
 
    frame = decoder.next_frame()
    print(frame)

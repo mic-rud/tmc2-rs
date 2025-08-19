@@ -8,7 +8,7 @@ default-run = "decoder"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "tmc2lib"
+name = "tmc2rs"
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
@@ -31,4 +31,4 @@ name = "decoder"
 debug = true
 
 [package.metadata.maturin]
-name = "tmc2lib"
+name = "tmc2rs"
