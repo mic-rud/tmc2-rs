@@ -9,7 +9,7 @@ default-run = "decoder"
 
 [lib]
 name = "tmc2rs"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [dependencies]
