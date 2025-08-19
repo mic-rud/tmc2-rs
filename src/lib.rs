@@ -195,7 +195,7 @@ impl PyTMC2Decoder {
 
     fn next_frame(&mut self, py: Python<'_>) -> Option<PyObject> {
         if let Some(rx) = &self.rx {
-            match rx.try_recv() {
+            match rx.recv() {
                 Ok(frame) => {
                     let dict = PyDict::new(py);
 
@@ -215,12 +215,12 @@ impl PyTMC2Decoder {
                         dict.set_item("colors", py_colors).ok();
                     }
 
-                    Some(dict.into())
+                    Ok(Some(dict.into()))
                 }
-                Err(_) => None,
+                Err(_) => Ok(None),
             }
         } else {
-            None
+            Ok(None)
         }
     }
 
